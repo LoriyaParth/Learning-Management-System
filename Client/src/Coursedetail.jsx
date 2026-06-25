@@ -1,40 +1,198 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const CourseDetails = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get course ID from URL query parameters
+  const searchParams = new URLSearchParams(location.search);
+  const courseId = searchParams.get('id');
+
+  const [formData, setFormData] = useState({
+    title: '',
+    subtitle: '',
+    description: '',
+    category: 'development',
+    level: 'beginner',
+    price: 0,
+    thumbnail: '',
+    status: 'Draft',
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!courseId) {
+      alert("No Course ID provided!");
+      navigate('/admincourse');
+      return;
+    }
+
+    const fetchCourse = async () => {
+      try {
+        const response = await fetch(`http://localhost:5000/api/courses/${courseId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setFormData({
+            title: data.title || '',
+            subtitle: data.subtitle || '',
+            description: data.description || '',
+            category: data.category || 'development',
+            level: data.level || 'beginner',
+            price: data.price || 0,
+            thumbnail: data.thumbnail || '',
+            status: data.status || 'Draft',
+          });
+        } else {
+          alert("Course not found!");
+          navigate('/admincourse');
+        }
+      } catch (error) {
+        console.error("Error fetching course details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourse();
+  }, [courseId, navigate]);
+
+  const handleChange = (e) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          thumbnail: reader.result,
+        }));
+      };
+    }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`http://localhost:5000/api/courses/${courseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        alert("Course details saved successfully!");
+      } else {
+        const err = await response.json();
+        alert(err.message || "Failed to update course");
+      }
+    } catch (error) {
+      console.error("Save course details error:", error);
+      alert("Error connecting to server");
+    }
+  };
+
+  const handleTogglePublish = async () => {
+    const nextStatus = formData.status === 'Published' ? 'Draft' : 'Published';
+    try {
+      const response = await fetch(`http://localhost:5000/api/courses/${courseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      if (response.ok) {
+        setFormData((prev) => ({ ...prev, status: nextStatus }));
+        alert(`Course successfully set to ${nextStatus}!`);
+      } else {
+        alert("Failed to update status.");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this course and all its lectures?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/courses/${courseId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert("Course deleted successfully!");
+        navigate('/admincourse');
+      } else {
+        alert("Failed to delete course.");
+      }
+    } catch (error) {
+      console.error("Delete course error:", error);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-white text-center pt-20">Loading course detail editor...</div>;
+  }
+
   return (
-    <div className="w-full max-w-5xl text-white-800">
-      
+    <div className="w-full max-w-5xl text-white">
       {/* Top Page Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold">Add detail information regarding course</h1>
-        <button className="text-sm font-medium hover:underline text-white-700">
-          Go to lectures page
+        <h1 className="text-xl font-bold">Edit course detail information</h1>
+        <button 
+          onClick={() => navigate(`/addlecture?courseId=${courseId}`)}
+          className="text-sm font-medium text-blue-400 hover:underline"
+        >
+          Go to lectures page &rarr;
         </button>
       </div>
 
       {/* Main Form Card */}
-      <div className="bg-gray-900 rounded-lg p-6 shadow-sm border border-gray-100">
+      <div className="bg-gray-900 rounded-lg p-6 shadow-sm border border-gray-700">
         
         {/* Card Header & Top Action Buttons */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-0">
           <div>
             <h2 className="text-lg font-bold">Basic Course Information</h2>
-            <p className="text-sm text-white-500 mt-1">
-              Make changes to your courses here. Click save when you're done.
+            <p className="text-sm text-gray-400 mt-1">
+              Configure your course status, settings, pricing, and lectures list.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="bg-[#1a1f2b] hover:bg-gray-800 text-white px-5 py-2 rounded font-medium transition-colors text-sm">
-              Publish
+            <button 
+              type="button"
+              onClick={handleTogglePublish}
+              className={`px-5 py-2 rounded font-medium transition-colors text-sm text-white ${
+                formData.status === 'Published' 
+                  ? 'bg-amber-600 hover:bg-amber-700' 
+                  : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
+            >
+              {formData.status === 'Published' ? 'Set to Draft' : 'Publish Course'}
             </button>
-            <button className="bg-[#ef4444] hover:bg-red-600 text-white px-5 py-2 rounded font-medium transition-colors text-sm">
+            <button 
+              type="button"
+              onClick={handleDeleteCourse}
+              className="bg-[#ef4444] hover:bg-red-600 text-white px-5 py-2 rounded font-medium transition-colors text-sm"
+            >
               Remove Course
             </button>
           </div>
         </div>
 
         {/* Form Fields */}
-        <form className="flex flex-col gap-6">
+        <form onSubmit={handleSave} className="flex flex-col gap-6">
           
           {/* Title */}
           <div>
@@ -42,8 +200,10 @@ const CourseDetails = () => {
             <input 
               type="text" 
               id="title"
-              defaultValue="MERN Stack Development"
-              className="w-full border border-gray-300 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4a90e2] focus:border-transparent transition-shadow text-sm"
+              value={formData.title}
+              onChange={handleChange}
+              className="w-full border border-gray-700 bg-gray-800 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm text-white"
+              required
             />
           </div>
 
@@ -53,56 +213,27 @@ const CourseDetails = () => {
             <input 
               type="text" 
               id="subtitle"
+              value={formData.subtitle}
+              onChange={handleChange}
               placeholder="Ex. Become a Fullstack developer from zero to hero in 2 months"
-              className="w-full border border-gray-300 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4a90e2] focus:border-transparent transition-shadow text-sm"
+              className="w-full border border-gray-700 bg-gray-800 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm text-white"
             />
           </div>
 
-          {/* Description (Rich Text Editor Mock) */}
+          {/* Description */}
           <div>
-            <label className="block text-sm font-semibold mb-2">Description</label>
-            <div className="border border-gray-300 rounded-md overflow-hidden">
-              {/* Toolbar */}
-              <div className="bg-gray-900 border-b border-gray-300 px-3 py-2 flex items-center gap-4 overflow-x-auto">
-                <select className="bg-gray-900 text-sm font-medium focus:outline-none cursor-pointer">
-                  <option>Normal</option>
-                  <option>Heading 1</option>
-                  <option>Heading 2</option>
-                </select>
-                
-                <div className="w-px h-5 bg-gray-300"></div> {/* Divider */}
-                
-                <div className="flex items-center gap-3 text-white-600">
-                  <button type="button" className="font-bold hover:text-black">B</button>
-                  <button type="button" className="italic hover:text-black font-serif">I</button>
-                  <button type="button" className="underline hover:text-black">U</button>
-                  {/* Link Icon */}
-                  <button type="button" className="hover:text-black">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                  </button>
-                  {/* Bullet List Icon */}
-                  <button type="button" className="hover:text-black">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                  </button>
-                  {/* Ordered List Icon */}
-                  <button type="button" className="hover:text-black">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 6h11M9 12h11M9 18h11M5 6v.01M5 12v.01M5 18v.01"></path></svg>
-                  </button>
-                  {/* Clear Format Icon */}
-                  <button type="button" className="hover:text-black font-serif italic text-sm">
-                    T<sub className="text-[10px]">x</sub>
-                  </button>
-                </div>
-              </div>
-              {/* Text Area */}
-              <textarea 
-                rows="4"
-                className="w-full p-4 focus:outline-none resize-y text-sm text-white-700"
-              ></textarea>
-            </div>
+            <label htmlFor="description" className="block text-sm font-semibold mb-2">Description</label>
+            <textarea 
+              id="description"
+              rows="6"
+              value={formData.description}
+              onChange={handleChange}
+              placeholder="Detailed description of course topics, syllabus, and what students will learn..."
+              className="w-full border border-gray-700 bg-gray-800 rounded-md p-4 focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm text-white resize-y"
+            ></textarea>
           </div>
 
-          {/* 3-Column Grid for Selects and Price */}
+          {/* 3-Column Grid for Category, Level, and Price */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Category */}
@@ -111,14 +242,15 @@ const CourseDetails = () => {
               <div className="relative">
                 <select 
                   id="category"
-                  defaultValue="MERN Stack Development"
-                  className="w-full border border-gray-300 rounded-md px-4 py-2.5 bg-gray-900 appearance-none focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm cursor-pointer"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full border border-gray-700 rounded-md px-4 py-2.5 bg-gray-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm cursor-pointer text-white"
                 >
-                  <option value="MERN Stack Development">MERN Stack Development</option>
-                  <option value="Frontend">Frontend</option>
-                  <option value="Backend">Backend</option>
+                  <option value="development">Web Development</option>
+                  <option value="design">UI/UX Design</option>
+                  <option value="marketing">Digital Marketing</option>
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white-500">
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
                   <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                 </div>
               </div>
@@ -130,15 +262,15 @@ const CourseDetails = () => {
               <div className="relative">
                 <select 
                   id="level"
-                  defaultValue=""
-                  className="w-full border border-gray-300 rounded-md px-4 py-2.5 bg-gray-900 appearance-none focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm cursor-pointer"
+                  value={formData.level}
+                  onChange={handleChange}
+                  className="w-full border border-gray-700 rounded-md px-4 py-2.5 bg-gray-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm cursor-pointer text-white"
                 >
-                  <option value="" disabled>Select a course level</option>
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white-500">
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
                   <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                 </div>
               </div>
@@ -150,8 +282,11 @@ const CourseDetails = () => {
               <input 
                 type="number" 
                 id="price"
-                defaultValue="199"
-                className="w-full border border-gray-300 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm"
+                value={formData.price}
+                onChange={handleChange}
+                className="w-full border border-gray-700 bg-gray-800 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#4a90e2] text-sm text-white"
+                min="0"
+                required
               />
             </div>
             
@@ -160,11 +295,20 @@ const CourseDetails = () => {
           {/* Thumbnail */}
           <div>
             <label className="block text-sm font-semibold mb-2">Course Thumbnail</label>
-            <div className="flex items-center">
+            <div className="flex items-center gap-4">
+              {formData.thumbnail && (
+                <img 
+                  src={formData.thumbnail} 
+                  alt="Thumbnail Preview" 
+                  className="w-24 h-16 object-cover rounded border border-gray-700" 
+                />
+              )}
               <input 
                 type="file" 
                 id="thumbnail"
-                className="block w-full text-sm text-white-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-l-md file:border-0 file:border-r file:border-gray-300 file:bg-gray-900 file:text-sm file:font-semibold hover:file:bg-gray-100 border border-gray-300 rounded-md cursor-pointer"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="block w-full text-sm text-gray-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-800 file:text-gray-300 hover:file:bg-gray-700 border border-gray-700 rounded-md cursor-pointer"
               />
             </div>
           </div>
@@ -173,15 +317,16 @@ const CourseDetails = () => {
           <div className="flex items-center gap-3 pt-2">
             <button 
               type="button" 
-              className="px-6 py-2 border border-gray-300 rounded font-medium hover:bg-gray-50 transition-colors text-sm"
+              onClick={() => navigate('/admincourse')}
+              className="px-6 py-2 border border-gray-700 bg-gray-800 rounded font-medium hover:bg-gray-700 transition-colors text-sm"
             >
               Cancel
             </button>
             <button 
               type="submit" 
-              className="px-6 py-2 bg-[#1a1f2b] text-white rounded font-medium hover:bg-gray-800 transition-colors text-sm"
+              className="px-6 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 transition-colors text-sm"
             >
-              Save
+              Save Changes
             </button>
           </div>
 

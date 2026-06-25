@@ -1,9 +1,31 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Courses = () => {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/courses?status=Published');
+        if (response.ok) {
+          const data = await response.json();
+          setCourses(data);
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
   return (
     <div className="absolute top-24 left-0 right-0 w-full px-6">
-      
       {/* 1. Header Text Section */}
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-white text-center">
@@ -14,99 +36,54 @@ const Courses = () => {
         </p>
       </div>
 
-      {/* 2. FIXED LINE: Added pb-12 to create a safe scrolling gap before the footer */}
+      {/* 2. Scrollable Grid Container */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto w-full h-[65vh] overflow-y-auto pr-2 pb-12 custom-scrollbar">
-        
-        {/* --- Keep all your 6 Cards exactly the same inside here --- */}
-        {/* Card - 1 */}
-        <div className="card bg-gray-800 w-full shadow-sm border border-gray-700 rounded-lg p-4 mx-auto text-white">
-          <figure className="px-6 pt-6">
-            <img src="https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp" alt="Shoes" className="rounded-xl w-full h-48 object-cover" />
-          </figure>
-          <div className="card-body items-center text-center p-4">
-            <h2 className="card-title text-xl font-bold">Card Title</h2>
-            <p className="text-sm text-gray-400">A card component has a figure, a body part, and inside body there are title and actions parts</p>
-            <div className="card-actions">
-              <button className="btn btn-primary my-4 bg-blue-600 border-none px-6 py-2 rounded text-white font-semibold">Buy Now</button>
-            </div>
+        {loading ? (
+          <div className="col-span-full text-center text-white text-xl py-12">
+            Loading courses...
           </div>
-        </div>
-
-        {/* Card - 2 */}
-        <div className="card bg-gray-800 w-full shadow-sm border border-gray-700 rounded-lg p-4 mx-auto text-white">
-          <figure className="px-6 pt-6">
-            <img src="https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp" alt="Shoes" className="rounded-xl w-full h-48 object-cover" />
-          </figure>
-          <div className="card-body items-center text-center p-4">
-            <h2 className="card-title text-xl font-bold">Card Title</h2>
-            <p className="text-sm text-gray-400">A card component has a figure, a body part, and inside body there are title and actions parts</p>
-            <div className="card-actions">
-              <button className="btn btn-primary my-4 bg-blue-600 border-none px-6 py-2 rounded text-white font-semibold">Buy Now</button>
-            </div>
+        ) : courses.length === 0 ? (
+          <div className="col-span-full text-center text-gray-400 text-xl py-12">
+            No published courses available right now. Check back later!
           </div>
-        </div>
-
-        {/* Card - 3 */}
-        <div className="card bg-gray-800 w-full shadow-sm border border-gray-700 rounded-lg p-4 mx-auto text-white">
-          <figure className="px-6 pt-6">
-            <img src="https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp" alt="Shoes" className="rounded-xl w-full h-48 object-cover" />
-          </figure>
-          <div className="card-body items-center text-center p-4">
-            <h2 className="card-title text-xl font-bold">Card Title</h2>
-            <p className="text-sm text-gray-400">A card component has a figure, a body part, and inside body there are title and actions parts</p>
-            <div className="card-actions">
-              <button className="btn btn-primary my-4 bg-blue-600 border-none px-6 py-2 rounded text-white font-semibold">Buy Now</button>
+        ) : (
+          courses.map((course) => (
+            <div
+              key={course._id}
+              className="card bg-gray-800 w-full shadow-sm border border-gray-700 rounded-lg p-4 mx-auto text-white flex flex-col justify-between"
+            >
+              <div>
+                <figure className="px-6 pt-6">
+                  <img
+                    src={course.thumbnail || "https://placehold.co/600x400/1e293b/ffffff?text=Course+Thumbnail"}
+                    alt={course.title}
+                    className="rounded-xl w-full h-48 object-cover border border-gray-700"
+                  />
+                </figure>
+                <div className="card-body items-center text-center p-4">
+                  <h2 className="card-title text-xl font-bold line-clamp-1">{course.title}</h2>
+                  <p className="text-sm text-gray-400 mt-2 line-clamp-2">
+                    {course.subtitle || course.description || "No description provided."}
+                  </p>
+                  <p className="text-blue-400 font-bold mt-2 text-lg">
+                    {course.price === 0 ? "Free" : `₹${course.price}`}
+                  </p>
+                </div>
+              </div>
+              <div className="card-actions flex justify-center pb-4">
+                <button
+                  onClick={() => navigate(`/aboutcourse?id=${course._id}`)}
+                  className="btn btn-primary bg-blue-600 hover:bg-blue-700 border-none px-6 py-2 rounded text-white font-semibold transition-colors"
+                >
+                  View Details
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-
-        {/* Card - 4 */}
-        <div className="card bg-gray-800 w-full shadow-sm border border-gray-700 rounded-lg p-4 mx-auto text-white">
-          <figure className="px-6 pt-6">
-            <img src="https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp" alt="Shoes" className="rounded-xl w-full h-48 object-cover" />
-          </figure>
-          <div className="card-body items-center text-center p-4">
-            <h2 className="card-title text-xl font-bold">Card Title</h2>
-            <p className="text-sm text-gray-400">A card component has a figure, a body part, and inside body there are title and actions parts</p>
-            <div className="card-actions">
-              <button className="btn btn-primary my-4 bg-blue-600 border-none px-6 py-2 rounded text-white font-semibold">Buy Now</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Card - 5 */}
-        <div className="card bg-gray-800 w-full shadow-sm border border-gray-700 rounded-lg p-4 mx-auto text-white">
-          <figure className="px-6 pt-6">
-            <img src="https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp" alt="Shoes" className="rounded-xl w-full h-48 object-cover" />
-          </figure>
-          <div className="card-body items-center text-center p-4">
-            <h2 className="card-title text-xl font-bold">Card Title</h2>
-            <p className="text-sm text-gray-400">A card component has a figure, a body part, and inside body there are title and actions parts</p>
-            <div className="card-actions">
-              <button className="btn btn-primary my-4 bg-blue-600 border-none px-6 py-2 rounded text-white font-semibold">Buy Now</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Card - 6 */}
-        <div className="card bg-gray-800 w-full shadow-sm border border-gray-700 rounded-lg p-4 mx-auto text-white">
-          <figure className="px-6 pt-6">
-            <img src="https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp" alt="Shoes" className="rounded-xl w-full h-48 object-cover" />
-          </figure>
-          <div className="card-body items-center text-center p-4">
-            <h2 className="card-title text-xl font-bold">Card Title</h2>
-            <p className="text-sm text-gray-400">A card component has a figure, a body part, and inside body there are title and actions parts</p>
-            <div className="card-actions">
-              <button className="btn btn-primary my-4 bg-blue-600 border-none px-6 py-2 rounded text-white font-semibold">Buy Now</button>
-            </div>
-          </div>
-        </div>
-
+          ))
+        )}
       </div>
-        
-      </div> 
-    
-  )
-}
+    </div>
+  );
+};
 
-export default Courses
+export default Courses;
